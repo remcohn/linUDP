@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Variables
+LOCAL_DIR="/Volumes/home/projects/linUDP"
+REMOTE_USER="remco"
+REMOTE_HOST="192.168.3.203"
+REMOTE_DIR="/home/remco/projects/linUDP"
+SCRIPT_TO_RUN="run_me.sh"
+
+
+tar -czf - --no-xattrs -C "$LOCAL_DIR" . | ssh "${REMOTE_USER}@${REMOTE_HOST}" "
+  tar -xzf - -C '${REMOTE_DIR}' && \
+  chmod +x '${REMOTE_DIR}/${SCRIPT_TO_RUN}'
+"
+
+ssh -tt "${REMOTE_USER}@${REMOTE_HOST}" bash <<EOF
+set -e
+cd '${REMOTE_DIR}'
+make
+export DISPLAY=:0.0
+xhost +
+sudo ./linUDP
+EOF
