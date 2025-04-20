@@ -136,7 +136,7 @@ void* ticker(void* arg) {
         uint32_t statusWord = 0, stateVar = 0, warnWord = 0, errorCode = 0, current = 0;
         int32_t actPos = 0, demPos = 0;
 
-        if (flags & 0xFF != 0xFF) {
+        if ((flags & 0xFF) != 0xFF) {
             printf("Invalid return flags: %02X\n", flags);
             return NULL;
         }
@@ -154,18 +154,18 @@ void* ticker(void* arg) {
             //printf("found monitoring data. not decoded yet\n");
         }
 
-        atomic_store(&globStatusWord, statusWord);
-        atomic_store(&globStateVar, stateVar);        
-        atomic_store(&globActPos, actPos);
-        atomic_store(&globDemPos, demPos);
-        atomic_store(&globCurrent, current);
-        atomic_store(&globWarnWord, warnWord);
-        atomic_store(&globErrorCode, errorCode);
-        atomic_store(&globNanoTime, nanotime);
+        atomic_store(&m.statusWord, statusWord);
+        atomic_store(&m.stateVar, stateVar);        
+        atomic_store(&m.actPos, actPos);
+        atomic_store(&m.demPos, demPos);
+        atomic_store(&m.current, current);
+        atomic_store(&m.warnWord, warnWord);
+        atomic_store(&m.errorCode, errorCode);
+        atomic_store(&m.nanotime, nanotime);
 
         // ******************************** Log data to InfluxDB
         char client_message[1024];
-        sprintf(client_message, "log motReqPos=%0.4f,motActPos=%0.4f,mosReqCur=%0.3f %lli", (float) demPos / 10000.0, (float)actPos / 10000.0, (float) current / 1000.0, nanotime);
+        sprintf(client_message, "log motReqPos=%0.4f,motActPos=%0.4f,mosReqCur=%0.3f %lu", (float) demPos / 10000.0, (float)actPos / 10000.0, (float) current / 1000.0, nanotime);
         if(sendto(influxSocket, client_message, strlen(client_message), 0, (struct sockaddr*)&influxServer_addr, sizeof(influxServer_addr)) < 0) {
             printf("Unable to send message\n");
             return NULL;
@@ -188,8 +188,8 @@ void* ticker(void* arg) {
         float cpu_load = (float)work_ns / PERIOD_NS * 100.0f;
         
         if (c++ % 100 == 0) {
-            printf("%04X %04X %10.4f %10.4f %4d %04X %04X -- ", statusWord, stateVar, (float)actPos / 10000.0, (float) demPos / 10000.0, current, warnWord, errorCode);
-            printf("Load = %.3f%% (%ld ns) (%d)\n", cpu_load, work_ns, tickMissed);
+            //printf("%04X %04X %10.4f %10.4f %4d %04X %04X -- ", statusWord, stateVar, (float)actPos / 10000.0, (float) demPos / 10000.0, current, warnWord, errorCode);
+            //printf("Load = %.3f%% (%ld ns) (%d)\n", cpu_load, work_ns, tickMissed);
         }
 
         // Calculate next wake time
@@ -201,7 +201,7 @@ void* ticker(void* arg) {
 
         long lateness_ns = ts_to_ns(&now) - ts_to_ns(&next);
         if (lateness_ns > 0) {
-            printf("!!! MISSED OUR TARGET by %ld\n", lateness_ns);
+            printf("!!! MISSED OUR TARGET by %0.3f us\n", (float)lateness_ns / 1000000.0);
             tickMissed++;
             if (tickMissed == 500) return NULL;
             //return NULL;

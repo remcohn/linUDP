@@ -53,7 +53,7 @@ gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
     char line[128];
     double y = 50;
 
-    snprintf(line, sizeof(line), "FPS: %.2f", state->fps);
+    snprintf(line, sizeof(line), "FPS: %.3f", state->fps / 1000000.0);
     cairo_move_to(cr, 50, y);
     cairo_show_text(cr, line);
 
@@ -68,14 +68,15 @@ gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
     cairo_show_text(cr, line);
 
     y += 40;
-    snprintf(line, sizeof(line), "Random: %d", rand() % 100);
+    snprintf(line, sizeof(line), "Pos: %9.2f mm / %9.2f mm", (float)atomic_load(&m.demPos) / 10000.0, (float)atomic_load(&m.actPos) / 10000.0);
     cairo_move_to(cr, 50, y);
     cairo_show_text(cr, line);
 
     y += 40;
-    snprintf(line, sizeof(line), "Pos: %9.2f mm / %9.2f mm", (float)atomic_load(&globDemPos) / 10000.0, (float)atomic_load(&globActPos) / 10000.0);
+    snprintf(line, sizeof(line), "Motion: Start: %5.1f Stroke: %5.1f Speed: %5.3f Accel: %5.1f", atomic_load(&m.pos1), atomic_load(&m.stroke),atomic_load(&m.speed),atomic_load(&m.accel));
     cairo_move_to(cr, 50, y);
     cairo_show_text(cr, line);
+
 
     return FALSE;
 }

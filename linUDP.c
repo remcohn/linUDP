@@ -75,18 +75,24 @@ int main() {
         return 1;
     }
 
-   // GUI thread
-   pthread_t gtk_thread;
+    // GUI thread
+    pthread_t gtk_thread;
 
-    // Create GUI in a separate thread
-    if (pthread_create(&gtk_thread, NULL, gtk_thread_func, NULL) != 0) {
+     // Create GUI in a separate thread
+     if (pthread_create(&gtk_thread, NULL, gtk_thread_func, NULL) != 0) {
         perror("Failed to create GTK thread");
         return EXIT_FAILURE;
+     }
+
+    // buttons thread
+    pthread_t canThread;
+    if (pthread_create(&canThread, NULL, canReceiveThread, NULL) != 0) {
+      perror("Failed to create GTK thread");
+      return EXIT_FAILURE;
     }
 
     // Optionally: join (blocks forever in this case)
     pthread_join(tickerThread, NULL);
-
 
     return 0;
 }

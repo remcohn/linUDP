@@ -3,8 +3,9 @@
 #include <time.h>
 #include <stdatomic.h>
 
-atomic_int_least32_t globActPos = 0, globDemPos = 0, globCurrent = 0, globStatusWord = 0, globStateVar = 0, globWarnWord = 0, globErrorCode = 0;
-atomic_int_least64_t globNanoTime = 0;
+#include "linUDP.h"
+
+struct Motion m;
 
 long ts_to_ns(struct timespec* ts) {
     return ts->tv_sec * 1000000000L + ts->tv_nsec;

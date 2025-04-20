@@ -14,7 +14,7 @@ tar -czf - --no-xattrs -C "$LOCAL_DIR" . | ssh "${REMOTE_USER}@${REMOTE_HOST}" "
 "
 
 ssh -tt "${REMOTE_USER}@${REMOTE_HOST}" bash <<EOF
-set -e
+set -e 
 cd '${REMOTE_DIR}'
 make
 export DISPLAY=:0.0
