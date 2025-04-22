@@ -62,6 +62,11 @@ int main() {
     pthread_attr_t attr;
     struct sched_param param;
 
+    pthread_mutex_init(&c1250CmdChannel.lock, NULL);
+    pthread_cond_init(&c1250CmdChannel.cond, NULL);
+    c1250CmdChannel.request_ready = 0;
+    c1250CmdChannel.response_ready = 0;
+
     setpriority(PRIO_PROCESS, 0, -20);
 
     pthread_attr_init(&attr);
@@ -90,6 +95,19 @@ int main() {
       perror("Failed to create GTK thread");
       return EXIT_FAILURE;
     }
+
+   printf("Waiting for startup...");
+   delay(100);
+   c1250WriteControlWord(0x003E);
+   delay(100);
+   c1250WriteControlWord(0x003F);
+   delay(100);
+   c1250WriteControlWord(0x083F);
+   delay(5000);
+   c1250WriteControlWord(0x003F);
+   //c1250WriteInt32(E1100_VAI2POSCON_1_POS, 1);
+   printf("and done\n");
+
 
     // Optionally: join (blocks forever in this case)
     pthread_join(tickerThread, NULL);

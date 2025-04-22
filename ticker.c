@@ -13,7 +13,7 @@
 
 #include "linUDP.h"
 
-#define PERIOD_NS (1 * 1000 * 1000)  // 1 ms in nanoseconds
+#define PERIOD_NS (1.1 * 1000 * 1000)  // 1 ms in nanoseconds
 
 #define DRIVE_IP "192.168.100.10" // Replace with your drive's IP address
 #define DRIVE_PORT 49360         // LinUDP drive port
@@ -21,6 +21,8 @@
 #define BUFFER_SIZE 1024
 
 int tickMissed = 0;
+int rtcCnt = 0;
+
 
 void* ticker(void* arg) {
     struct timespec next, now;
@@ -97,18 +99,47 @@ void* ticker(void* arg) {
             exit(EXIT_FAILURE);
         }
 
-        // TODO: Check if we have a new ControlWord to include
+        int cmd = 0;
+        int32_t upid;
+        int32_t value;
+        int payload = 0;
+
+        pthread_mutex_lock(&c1250CmdChannel.lock);
+        if (c1250CmdChannel.request_ready) {
+            cmd = c1250CmdChannel.cmd;
+            upid = c1250CmdChannel.upid;
+            value = c1250CmdChannel.value;            
+            printf("Thread B got request %d : %04X = %d\n", cmd, upid, value);
+        }
+        
+        *(uint32_t *)&send_buffer[0] = 0x00000000; // reqBits
+        *(uint32_t *)&send_buffer[4] = 0x000000FF; // repBits
+
+        // Check if we have a new ControlWord to include
+        if (cmd == 1) {
+            *(uint32_t *)&send_buffer[0] |= 0x01; // we'll be sending a ControlWord
+            *(uint16_t *)&send_buffer[8] = value;
+            payload += 2;
+        }
         
         // TODO: Check if we have a MC Control message to include
         
-        // TODO: Check if we have any RealTimeControl messages to include
-
-        // TODO: Assemble TX packet
-
-        *(uint32_t *)&send_buffer[0] = 0x00000000; // reqBits
-        *(uint32_t *)&send_buffer[4] = 0x000000FF; // repBits
+        // Check if we have any RealTimeControl messages to include
+        if (cmd == 2) {
+            *(uint32_t *)&send_buffer[0] |= 0x004; // we'll be sending a ControlWord
+            *(uint32_t *)&send_buffer[4] |= 0x100; // and we expect a reply too
+            send_buffer[8] = rtcCnt;
+            send_buffer[9] = 0x13; // Write RAM value of parameter by UPID
+            *(uint16_t *)&send_buffer[10] = htole16(upid);
+            *(uint32_t *)&send_buffer[12] = htole32(value);
+            payload += 8;
+            
+            rtcCnt++;
+            if (rtcCnt == 16) rtcCnt = 0;
+            
+        }
         
-        ssize_t sent_bytes = sendto(sockfd, send_buffer, 8, 0, (struct sockaddr *)&drive_addr, addr_len);
+        ssize_t sent_bytes = sendto(sockfd, send_buffer, 8 + payload, 0, (struct sockaddr *)&drive_addr, addr_len);
         if (sent_bytes < 0) {
             perror("sendto failed");
             close(sockfd);
@@ -178,19 +209,23 @@ void* ticker(void* arg) {
             uint16_t p3 = le16toh(*(uint32_t *)&recv_buffer[ptr]); ptr += 2;
             uint16_t p4 = le16toh(*(uint32_t *)&recv_buffer[ptr]); ptr += 2;
             int32_t px = (p4<<16) | p3;
-            printf("RTC: %04X %04X %d\n", p1, p2, px);
+            //printf("RTC: %04X %04X %d\n", p1, p2, px);
         }
+
+        if (cmd) {
+            c1250CmdChannel.response_ready = 1;
+            c1250CmdChannel.request_ready = 0;
+
+            pthread_cond_signal(&c1250CmdChannel.cond);  // wake thread A
+        }
+        pthread_mutex_unlock(&c1250CmdChannel.lock);        
+
 
         // ******************************** Do some timing stuff to prepare for the next cycle
         // Mark end of work, Calculate time spent working (active time)
         clock_gettime(CLOCK_MONOTONIC, &now);
         long work_ns = ts_to_ns(&now) - ts_to_ns(&next);
         float cpu_load = (float)work_ns / PERIOD_NS * 100.0f;
-        
-        if (c++ % 100 == 0) {
-            //printf("%04X %04X %10.4f %10.4f %4d %04X %04X -- ", statusWord, stateVar, (float)actPos / 10000.0, (float) demPos / 10000.0, current, warnWord, errorCode);
-            //printf("Load = %.3f%% (%ld ns) (%d)\n", cpu_load, work_ns, tickMissed);
-        }
 
         // Calculate next wake time
         next.tv_nsec += PERIOD_NS;
@@ -198,12 +233,17 @@ void* ticker(void* arg) {
             next.tv_nsec -= 1000000000;
             next.tv_sec += 1;
         }
-
         long lateness_ns = ts_to_ns(&now) - ts_to_ns(&next);
+        
+        if (c++ % 100 == 0 || lateness_ns > 0) {
+            printf("%04X %04X %10.4f %10.4f %4d %04X %04X -- ", statusWord, stateVar, (float)actPos / 10000.0, (float) demPos / 10000.0, current, warnWord, errorCode);
+            printf("Load = %.3f%% (%ld ns) (%d)\n", cpu_load, work_ns, tickMissed);
+        }
+
         if (lateness_ns > 0) {
             printf("!!! MISSED OUR TARGET by %0.3f us\n", (float)lateness_ns / 1000000.0);
             tickMissed++;
-            if (tickMissed == 500) return NULL;
+            //if (tickMissed == 500) return NULL;
             //return NULL;
         }
 

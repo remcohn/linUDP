@@ -57,7 +57,7 @@ void *canReceiveThread(void *data) {
 
             if (btn == 0) {
                 printf("ESTOP\n");
-                //e1100_writeControlword(canSocket, 0x003E);      // not enable
+                c1250WriteControlWord(0x003E); // Not enable
                 atomic_store(&m.halt, 1);
                 return NULL;
             }
@@ -87,10 +87,8 @@ void *canReceiveThread(void *data) {
                 atomic_store(&m.pos2, pos2);
                 atomic_store(&m.stroke, stroke);
              
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_1_POS, 1, m.pos1 * E1100_FACTOR_POS);
-                //delay(10);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_2_POS, 1, m.pos2 * E1100_FACTOR_POS);
-                //delay(10);
+                c1250WriteInt32(E1100_VAI2POSCON_1_POS, m.pos1 * E1100_FACTOR_POS);
+                c1250WriteInt32(E1100_VAI2POSCON_2_POS, m.pos2 * E1100_FACTOR_POS);
             }
 
             if (ch == 3) {
@@ -100,10 +98,9 @@ void *canReceiveThread(void *data) {
                 if (speed < 0.05) speed = 0.05;
                 if (speed > 3.0) speed = 3.0;
                 atomic_store(&m.speed, speed);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_1_SPEED, 1, m.speed * E1100_FACTOR_SPEED);        // 1 step = 0.000001 m/s
-                //delay(10);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_2_SPEED, 1, m.speed * E1100_FACTOR_SPEED);        // 1 step = 0.000001 m/s
-                //delay(10);
+                
+                c1250WriteInt32(E1100_VAI2POSCON_1_SPEED, m.speed * E1100_FACTOR_SPEED);
+                c1250WriteInt32(E1100_VAI2POSCON_2_SPEED, m.speed * E1100_FACTOR_SPEED);
             }
 
             if (ch == 4) {
@@ -113,14 +110,11 @@ void *canReceiveThread(void *data) {
                 if (accel < 0.2) accel = 0.2;
                 if (accel > 25) accel = 25;
                 atomic_store(&m.accel, accel);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_1_ACCEL, 1, m.accel * E1100_FACTOR_ACCEL);        // 1 step = 0.00001 m/s2
-                //delay(10);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_1_DECEL, 1, m.accel * E1100_FACTOR_ACCEL);        // 1 step = 0.00001 m/s2
-                //delay(10);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_2_ACCEL, 1, m.accel * E1100_FACTOR_ACCEL);        // 1 step = 0.00001 m/s2
-                //delay(10);
-                //co_writeSDOint32(canSocket, 0x2000 + E1100_VAI2POSCON_2_DECEL, 1, m.accel * E1100_FACTOR_ACCEL);        // 1 step = 0.00001 m/s2
-                //delay(10);
+                
+                c1250WriteInt32(E1100_VAI2POSCON_1_ACCEL, m.accel * E1100_FACTOR_ACCEL);
+                c1250WriteInt32(E1100_VAI2POSCON_1_DECEL, m.accel * E1100_FACTOR_ACCEL);
+                c1250WriteInt32(E1100_VAI2POSCON_2_ACCEL, m.accel * E1100_FACTOR_ACCEL);
+                c1250WriteInt32(E1100_VAI2POSCON_2_DECEL, m.accel * E1100_FACTOR_ACCEL);
             }
             printf("pos1: %0.1f stroke: %0.1f pos2: %0.1f speed: %0.3f accel: %0.1f\n",m.pos1,m.stroke, m.pos2, m.speed,m.accel);
         } 
